@@ -1,12 +1,22 @@
-Code for the [interactive browser](https://cboix.shinyapps.io/epimap_vis/).
+This repository contains the code for the [interactive browser](https://cboix.shinyapps.io/epimap_vis/) of EpiMap data resource.
 
-You can also run the browser on your computer with this repository, using the [`shiny`](https://shiny.rstudio.com/) library in R:
+The project's main site can be found at [compbio.mit.edu/epimap](compbio.mit.edu/epimap).
+
+You can run the browser directly on your computer using the code in this repository and the [`shiny`](https://shiny.rstudio.com/) library in R as follows:
 
 ```R
-# Install shiny
-install.packages('shiny')
+# Install shiny and other required packages:
+pkgs = c('cba', 'DT', 'heatmaply', 'igraph', 'markdown', 'RColorBrewer', 
+        'shiny', 'shinycssloaders', 'shinydashboard', 'shinyjs', 'shinythemes', 'shinyTree', 'shinyWidgets',
+        'stringr', 'tidyr', 'visNetwork')
 
-# Run app from github directly:
+# Check for missing packages:
+new.pkgs <- pkgs[!(pkgs %in% installed.packages()[,"Package"])]
+
+# Install the missing packages:
+if (length(new.pkgs)) install.packages(new.pkgs, dependencies=TRUE)
+
+# Download and run the app from github:
 library(shiny)
 runGitHub("epimap_vis", "cboix")
 ```
