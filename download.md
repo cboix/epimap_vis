@@ -1,7 +1,7 @@
 #### About:
 
 * Main website: [http://compbio.mit.edu/epimap/](http://compbio.mit.edu/epimap/)
-* Manuscript on bioRxiv: https://www.biorxiv.org/content/10.1101/810291v2
+* Paper: https://www.nature.com/articles/s41586-020-03145-z
 * Contact: cboix@mit.edu
 
 #### Tracks and Metadata
@@ -14,7 +14,7 @@
 
 ####  Enhancers, Modules, and Enrichments:
 
-* Enhancer locations:
+* Enhancer locations: [directory](https://personal.broadinstitute.org/cboix/epimap/mark_matrices), [enhancers (0-ind)](https://personal.broadinstitute.org/cboix/epimap/mark_matrices/ENH_masterlist_indices_0indexed.tsv), [promoters (0-ind)](https://personal.broadinstitute.org/cboix/epimap/mark_matrices/PROM_masterlist_indices_0indexed.tsv); enh. matrix [hdf5](https://personal.broadinstitute.org/cboix/epimap/mark_matrices/Enhancer_H3K27ac_intersect_matrix.hdf5), [mtx](https://personal.broadinstitute.org/cboix/epimap/mark_matrices/Enhancer_H3K27ac_intersect_matrix.mtx.gz); prom. matrix [hdf5](https://personal.broadinstitute.org/cboix/epimap/mark_matrices/Promoter_H3K27ac_intersect_matrix.hdf5), [mtx](https://personal.broadinstitute.org/cboix/epimap/mark_matrices/Promoter_H3K27ac_intersect_matrix.mtx.gz)
 * Enhancer modules: [assignments](https://personal.broadinstitute.org/cboix/epimap/extended_data/clusters_data/cls_merge2_wH3K27ac100_300_assignments.loc.bed), [centers](https://personal.broadinstitute.org/cboix/epimap/extended_data/clusters_data/cls_merge2_wH3K27ac100_300_centers.tsv.gz), and [metadata directory](https://personal.broadinstitute.org/cboix/epimap/extended_data/clusters_data)
 * Enrichments: [archetype motifs](https://personal.broadinstitute.org/cboix/epimap/extended_data/clusters_data/motifs_bkgdhs_cls_enrich.reduced.tsv.gz), [full motifs](https://personal.broadinstitute.org/cboix/epimap/extended_data/clusters_data/motifs_bkgdhs_cls.enrich.full.tsv.gz), [GO terms](https://personal.broadinstitute.org/cboix/epimap/extended_data/clusters_data/modules_GO_enrichments_matrix_ordered.tsv.gz)
 * Motif enrichments are on JASPAR 2018, HOCOMOCOv11, and  HT-SELEX (Jolma, 2013). 
