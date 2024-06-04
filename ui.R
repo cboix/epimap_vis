@@ -1,73 +1,5 @@
 #!/usr/bin/R
 # UI side for imputation visualization:
-library(shiny)
-library(shinyjs)
-library(shinyTree)
-library(shinythemes)
-library(shinydashboard)
-library(shinycssloaders)
-library(shinyWidgets)
-library(visNetwork)
-library(markdown)
-library(DT)
-library(heatmaply)
-options(scipen=45)
-
-# ----------------
-# For sample tree:
-# ----------------
-# Make types list:
-load('data/metadata_app.Rda')
-meta$infostr = paste0(meta$id, ': ', meta$info)
-meta$ctstr = paste0(meta$id, ': ', meta$ct)
-gcols = colvals$group
-groups.full = names(gcols)
-groups = gsub("[& -.]","", tolower(groups.full))
-names(gcols) = groups
-typeslist = c("{", sapply(groups, function(x){ paste0("'",x,"': {'a_attr' : { 'style' : 'color:", gcols[x],"' }}, ") }), "}")
-typeslist = paste(typeslist, collapse="")
-co859 = scan('data/859_samples.txt',quiet=TRUE, 'c', sep="\n")
-cellorder = scan('data/833_samples.txt',quiet=TRUE, 'c', sep="\n")
-meta = meta[meta$id %in% co859,]
-
-# For picking marks:
-all.assays = scan('data/all_assays.txt', quiet=TRUE, 'c', sep="\n")
-
-# -------------------------
-# For the preset trackhubs:
-# -------------------------
-resdir = "http://personal.broadinstitute.org/cboix/epimap/"
-UCSCprefix = 'http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&hubUrl=http://personal.broadinstitute.org/cboix/epimap/trackhubs/'
-UCSC38prefix = 'http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&hubUrl=http://personal.broadinstitute.org/cboix/epimap/trackhubs/'
-WUSTLprefix = 'http://epigenomegateway.wustl.edu/legacy/?genome=hg19&datahub=http://personal.broadinstitute.org/cboix/epimap/trackhubs/'
-WUSTLnewprefix = 'http://epigenomegateway.wustl.edu/browser/?genome=hg19&hub=http://personal.broadinstitute.org/cboix/epimap/trackhubs/'
-
-# -------------------------
-# For the GWAS enrichments:
-# -------------------------
-# Read in autocomplete list of GWAS:
-# Read in the list of annotations to look at:
-tree.gwas = scan('data/tree_gwas_list.txt', quiet=TRUE, 'c', sep="\n")
-tree.gwas1p = scan('data/tree_gwas1p_list.txt', quiet=TRUE, 'c', sep="\n")
-
-# For checkbox input in grid-style
-tweaks <- list(tags$head(tags$style(HTML("
-                                         .multicol { 
-                                             height: 350px;
-                                             -webkit-column-count: 3; /* Chrome, Safari, Opera */ 
-                                                 -moz-column-count: 3;    /* Firefox */ 
-                                                 column-count: 3; 
-                                             -moz-column-fill: auto;
-                                             -column-fill: auto;
-                                         } 
-                                         ")) 
-                                         ))
-group.checkboxes <- tags$div(align = 'left', class = 'multicol', 
-                             checkboxGroupInput(inputId  = 'selGroups', 
-                                                label    = "Restrict to sample groups:", 
-                                                choices  = groups.full,
-                                                selected = NULL,
-                                                inline   = FALSE))
 
 # UI for tree editor:
 shinyUI(
@@ -219,33 +151,37 @@ shinyUI(
                             )),
                    tabPanel("GWAS Enrichments", value='treeNV',
                             useShinyjs(),
-                            sidebarPanel(selectizeInput('selGWASTree', 'Select single GWAS of interest (PubMedID - Trait):',
-                                                        choices = tree.gwas, multiple = FALSE, options = list(create = TRUE)),
-                                         fluidRow(
-                                                  column(4, actionButton("prevButton", "Previous"), actionButton("nextButton", "Next")),
-                                                  column(1, tags$b("FDR:")), 
-                                                  column(4, selectizeInput('selFDR', label=NULL,
-                                                                           # 'Select FDR (only for enr. vis):', 
-                                                                           choices = c('1%', '0.1%'),
-                                                                           multiple = FALSE, selected = '1%', options = list(create = TRUE)))
-                                                  ),
-                                         hr(),
-                                         selectizeInput('filtNode', 'Filter tables by enrichment:',
-                                                        choices = NULL, multiple = TRUE, options = list(create = TRUE)),
-                                         selectizeInput('filtSNP', 'Filter tables by SNP:',
-                                                        choices = NULL, multiple = TRUE, options = list(create = TRUE)),
-                                         hr(),
-                                         sliderInput("GWASsnpENHdist", "Maximum distance between SNP and center of enhancer:",
-                                                     min = 0, max = 2500, value = 2500, step = 10),
-                                         radioButtons("selGWASPrioType", "Show prioritization:",
-                                                      c("All" = "all", "Has linked gene" = "any", "Linked gene disagrees with nearest gene" = "disagree"),
-                                                      selected='all'),
-                                         hr(),
-                                         selectizeInput('selGWASTreeMult', 'Select multiple GWAS of interest to plot side-by-side:',
-                                                        choices = tree.gwas, multiple = TRUE, options = list(create = TRUE)),
-                                         sliderInput("GWASTreeScale", "Image Scale (for side-by-side):",
-                                                     min = 0.25, max = 2, value = 1, step = 0.05)
-                            ),
+                            sidebarPanel(
+                                radioButtons("useAnalysis", "Analysis:",
+                                    c("Original (*Improper FDR: see About page*)" = "original", "Revised" = "revised"), selected='revised'),
+
+                                selectizeInput('selGWASTree', 'Select single GWAS of interest (PubMedID - Trait):',
+                                    choices = tree.gwas, multiple = FALSE, options = list(create = TRUE)),
+                                fluidRow(
+                                    column(4, actionButton("prevButton", "Previous"), actionButton("nextButton", "Next")),
+                                    column(1, tags$b("Adj. p-value:")), 
+                                    column(4, selectizeInput('selFDR', label=NULL,
+                                            # 'Select FDR (only for enr. vis):', 
+                                            choices = c('1%', '0.1%'),
+                                            multiple = FALSE, selected = '1%', options = list(create = TRUE)))
+                                    ),
+                                hr(),
+                                selectizeInput('filtNode', 'Filter tables by enrichment:',
+                                    choices = NULL, multiple = TRUE, options = list(create = TRUE)),
+                                selectizeInput('filtSNP', 'Filter tables by SNP:',
+                                    choices = NULL, multiple = TRUE, options = list(create = TRUE)),
+                                hr(),
+                                sliderInput("GWASsnpENHdist", "Maximum distance between SNP and center of enhancer:",
+                                    min = 0, max = 2500, value = 2500, step = 10),
+                                radioButtons("selGWASPrioType", "Show prioritization:",
+                                    c("All" = "all", "Has linked gene" = "any", "Linked gene disagrees with nearest gene" = "disagree"),
+                                    selected='all'),
+                                hr(),
+                                selectizeInput('selGWASTreeMult', 'Select multiple GWAS of interest to plot side-by-side:',
+                                    choices = tree.gwas, multiple = TRUE, options = list(create = TRUE)),
+                                sliderInput("GWASTreeScale", "Image Scale (for side-by-side):",
+                                    min = 0.25, max = 2, value = 1, step = 0.05)
+                                ),
 
                             mainPanel(tabsetPanel(type="tabs", id="treeTabset",
                                                   tabPanel("Tree Overview", value='tabTree', 

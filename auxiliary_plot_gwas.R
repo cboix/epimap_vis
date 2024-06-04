@@ -19,6 +19,16 @@ colr <- colorRampPalette(brewer.pal(n=9,name="Reds"))(100)
 colb <- colorRampPalette(brewer.pal(n=9,name="Blues"))(100)
 
 
+# Fix trait string:
+fix.trait.str = function(trait){
+    traitstr = gsub("'","_", gsub(" ", "_", tolower(trait)))
+    traitstrnoparen = gsub("<", "lt", gsub(">","gt",
+            gsub("/", "_", gsub("\\)" ,"", gsub("\\(","",traitstr)))))
+    return(traitstrnoparen)
+}
+
+
+
 #' Plot metadata image with appropriate colors
 #' 
 #' @param metamat Metadata matrix

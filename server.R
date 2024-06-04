@@ -1,86 +1,10 @@
 #!/usr/bin/R 
 # Server side for tree visualization:
 library(tidyr)
-library(shiny)
-library(shinyTree)
 library(stringr)
 library(RColorBrewer)
-library(visNetwork)
 library(igraph)
-library(heatmaply)
-# library(plotly)
-options(scipen=45)
 
-source('auxiliary_plot_gwas.R')
-source('auxiliary_trackhubs_functions.R')
-
-# -------------
-# Load metadata
-# -------------
-load('data/metadata_app.Rda') # Overall epi metadata
-load('data/gwascatalog_may03_2019_noquotes_summary.Rda') # GWAS summaries
-# For tables:
-meta$ct = gsub("_"," ",meta$ct)
-meta$infostr = paste0(meta$id, ': ', meta$info)
-# For plots:
-metamat = cbind('lifestage'=meta$lifestage, 'sex'=meta$sex,
-                'type'=meta$type, 'project'=meta$Project,
-                'group'=as.character(meta$GROUP))
-meta$type[is.na(meta$type)] = 'ENCODE'
-rownames(metamat) = meta$id
-
-# ---------------------------
-# Reduce to kept 859 samples:
-# ---------------------------
-cellorder = scan('data/833_samples.txt',quiet=TRUE, 'c', sep="\n")
-co859 = scan('data/859_samples.txt',quiet=TRUE, 'c', sep="\n")
-tree.gwas = scan('data/tree_gwas_list.txt', quiet=TRUE, 'c', sep="\n")
-tree.gwas1p = scan('data/tree_gwas1p_list.txt', quiet=TRUE, 'c', sep="\n")
-meta = meta[meta$id %in% co859,]
-
-# Make tierdf:
-all.assays = scan('data/all_assays.txt', quiet=TRUE, 'c', sep="\n")
-mainmarks = c('DNase-seq', 'H3K27ac','H3K27me3','H3K36me3','H3K4me1','H3K4me3','H3K9me3')
-tier2marks = c("ATAC-seq", "H2AFZ", "H3K4me2", "H3K79me2", "H3K9ac", "H4K20me1")
-tier3marks = c("POLR2A", "CTCF", "EP300", "RAD21", "SMC3")
-tierdf = data.frame(mark = all.assays, tier = 't4')
-tierdf$tier[tierdf$mark %in% mainmarks] = 't1'
-tierdf$tier[tierdf$mark %in% tier2marks] = 't2'
-tierdf$tier[tierdf$mark %in% tier3marks] = 't3'
-
-# For metadata tables:
-mcols = c('GROUP','infoline','ct','lifestage','age','sex','type','Project','Donor')
-rename.mcols = c('Group','Short name','Full name','Lifestage','Age','Sex','Type','Project','Donor')
-# For colors/ordering:
-odf = read.delim('data/group_ordering.tsv', header=T, stringsAsFactors=F)
-clvs = c('Tissue', 'Primary Cell', 'Immune', 'Neural', 'Stem-like', 'Other')
-odf$category = factor(odf$category, levels=clvs)
-rdcol = unique(meta[,c('GROUP','COLOR')])
-rdcol = rdcol[order(rdcol$GROUP),]
-colset = as.character(rdcol$COLOR)
-odf$alt = sub(" \\& ","/", odf$GROUP)
-
-# Mapping from colors <-> groups
-col2group = odf$GROUP
-col2alt = odf$alt
-group2col = odf$COLOR
-names(col2group) = odf$COLOR
-names(col2alt) = odf$COLOR
-names(group2col) = odf$GROUP
-
-# URLs:
-epidir = 'https://personal.broadinstitute.org/cboix/epimap/'
-
-# For loading RDa with no duplicates:
-rda2list <- function(file) {
-    e <- new.env()
-    load(file, envir = e)
-    as.list(e)
-}
-
-
-# Reactive values for keeping track of images:
-imgTrack <- reactiveValues(newLocusImg=0)
 
 shinyServer(function(input, output, session) {
   log <- c(paste0(Sys.time(), ": Interact with the tree to see the logs here..."))
@@ -639,11 +563,17 @@ shinyServer(function(input, output, session) {
   getTreePng <- reactive({
       trait = sub(".* - ", "", input$selGWASTree)
       pmid = sub(" - .*", "", input$selGWASTree)
-      traitstr = gsub("'","_", gsub(" ", "_", tolower(trait)))
-      traitstrnoparen = gsub("/", "_", gsub("\\)" ,"", gsub("\\(","",traitstr)))
+      # traitstr = gsub("'","_", gsub(" ", "_", tolower(trait)))
+      # traitstrnoparen = gsub("/", "_", gsub("\\)" ,"", gsub("\\(","",traitstr)))
+      traitstrnoparen = fix.trait.str(trait)
       pnghead = paste0(epidir, 'gwas_smallfigures/')
       pngpref = 'enhancers_e2500_adj_onecut_cons_parent_gwas_small_'
-      if (input$selFDR == '1%'){ pcutstr = '_1pct' } else { pcutstr = '_pt1pct' }
+      pcutstr = pcutmap[[input$selFDR]]
+      # Update for snpcentric results
+      if (input$useAnalysis == 'revised'){
+          pnghead = paste0(pnghead, 'snpcentric/')
+          pngpref = 'enhancers_e2500_hg_cons_gwas_small_'
+      }
       pngurl = paste0(pnghead, pngpref, traitstrnoparen, '_', pmid, pcutstr, '.png')
       return(pngurl)
   })
@@ -656,9 +586,19 @@ shinyServer(function(input, output, session) {
   getEnhancerSNPPng <- reactive({
       ind = which(tree.gwas == input$selGWASTree)
       ipref = sprintf("%05d", ind)
-      pnghead = paste0(epidir, 'gwas_smallfigures/')
-      pngpref = 'enhancers_e2500_adj_onecut_snp_intersections_'
-      pngurl = paste0(pnghead, pngpref, sprintf('page_%d.png', ind))
+      if (input$useAnalysis == 'original'){
+          pnghead = paste0(epidir, 'gwas_smallfigures/')
+          pngpref = 'enhancers_e2500_adj_onecut_snp_intersections_'
+          pngurl = paste0(pnghead, pngpref, sprintf('page_%d.png', ind))
+      } else {
+          trait = sub(".* - ", "", input$selGWASTree)
+          pmid = sub(" - .*", "", input$selGWASTree)
+          traitstrnoparen = fix.trait.str(trait)
+          pnghead = paste0(epidir, 'gwas_smallfigures/snpcentric/')
+          pngpref = 'enhancers_e2500_hg_conssnp_intersections_'
+          pngurl = paste0(pnghead, pngpref, traitstrnoparen, '_', pmid, '.png')
+      }
+      return(pngurl)
   })
 
   output$GWASEnhancerSNP <- renderText({
@@ -666,14 +606,43 @@ shinyServer(function(input, output, session) {
       c('<img src="',imgsrc,'" width=500px >')
   })
 
-  getGWASList <- reactive({
-      if (input$selFDR == '1%'){ tree.gwas } else { tree.gwas1p }
+  # Update the FDR cutoffs:
+  # -----------------------
+  getFDRcutoffs <- reactive({
+      if (input$useAnalysis == 'original'){
+          fdr.list = c('1%', '0.1%')
+      } else {
+          fdr.list = c('1%', '2%', '5%')
+      }
+      return(fdr.list)
   })
 
-  observeEvent(input$selFDR, {
-                   tree.list = getGWASList()
-                   updateSelectizeInput(session, "selGWASTree", choices=tree.list)
-                   updateSelectizeInput(session, "selGWASTreeMult", choices=tree.list)
+  observeEvent(input$useAnalysis, {
+      updateSelectizeInput(session, "selFDR", choices=getFDRcutoffs())
+  })
+
+  # Update the GWAS list:
+  # ---------------------
+  getGWASList <- reactive({
+      key = paste0(input$useAnalysis, '_', input$selFDR)
+      return(treeGWASlist[[key]])
+  })
+
+  listenAnalysisChange <- reactive({
+      list(input$selFDR, input$useAnalysis)
+  })
+
+  observeEvent(listenAnalysisChange(), {
+      # Preserve trait if possible
+      orig_sel = input$selGWASTree
+      orig_sel_multi = input$selGWASTreeMult
+      # Get new list:
+      tree.list = getGWASList()
+      if (orig_sel %in% tree.list){
+          sel = orig_sel
+      } else { sel = NULL }
+      updateSelectizeInput(session, "selGWASTree", choices=tree.list, selected=sel)
+      updateSelectizeInput(session, "selGWASTreeMult", choices=tree.list)
   })
 
   # Navigate GWAS selection with buttons
@@ -692,11 +661,17 @@ shinyServer(function(input, output, session) {
   getTreeMultiPNG <- reactive({
       tree.list = getGWASList()
       trait = sub(".* - ", "", input$selGWASTreeMult)
-      traitstr = gsub("'","_", gsub(" ", "_", tolower(trait)))
-      traitstrnoparen = gsub("/", "_", gsub("\\)" ,"", gsub("\\(","",traitstr)))
+      # traitstr = gsub("'","_", gsub(" ", "_", tolower(trait)))
+      # traitstrnoparen = gsub("/", "_", gsub("\\)" ,"", gsub("\\(","",traitstr)))
+      traitstrnoparen = fix.trait.str(trait)
       pnghead = paste0(epidir, 'gwas_smallfigures/')
       pngpref = 'enhancers_e2500_adj_onecut_cons_parent_gwas_small_'
-      if (input$selFDR == '1%'){ pcutstr = '_1pct' } else { pcutstr = '_pt1pct' }
+      pcutstr = pcutmap[[input$selFDR]]
+      # Update for snpcentric results
+      if (input$useAnalysis == 'revised'){
+          pnghead = paste0(pnghead, 'snpcentric/')
+          pngpref = 'enhancers_e2500_hg_cons_gwas_small_'
+      }
       pngurl = paste0(pnghead, pngpref, traitstrnoparen, pcutstr, '.png')
       return(pngurl)
   })
@@ -722,9 +697,24 @@ shinyServer(function(input, output, session) {
 
   # Dynamically update the slicing:
   getGWASFiltLabs <- reactive({
+      if (input$useAnalysis == 'original'){
+          out = getGWASFiltLabsOrig()
+      } else {
+          out = getGWASFiltLabsSC()
+      }
+      return(out)
+  })
+
+  getGWASFiltLabsOrig <- reactive({
       load('data/all_snp_enrichment_labs_forfilt.Rda')
       return(list(snp=snplist, enr=enrlist, groups=linklist))
   })
+
+  getGWASFiltLabsSC <- reactive({
+      load('data/all_snp_enrichment_labs_forfilt.snpcentric.Rda')
+      return(list(snp=snplist, enr=enrlist, groups=linklist))
+  })
+
 
   selectGWASFiltLabs <- reactive({
       ll = getGWASFiltLabs()
@@ -763,7 +753,22 @@ shinyServer(function(input, output, session) {
 
   # Add also top enriched tissues, number of SNPs intersecting them, etc.
   getGWASOvlStats <- reactive({
+      if (input$useAnalysis == 'original'){
+          out = getGWASOvlStatsOrig()
+      } else {
+          out = getGWASOvlStatsSC()
+      }
+      return(out)
+  })
+
+  getGWASOvlStatsOrig <- reactive({
       load('data/all_enrichment_summaries_alone.Rda')
+      gw.enrdf
+  })
+
+  # Copy of above to have reactively loaded snpcentric
+  getGWASOvlStatsSC <- reactive({
+      load('data/all_enrichment_summaries_alone.snpcentric.Rda')
       gw.enrdf
   })
 
@@ -796,7 +801,22 @@ shinyServer(function(input, output, session) {
 
   # All nearby enhancers:
   getGWASEnhStats <- reactive({
+      if (input$useAnalysis == 'original'){
+          out = getGWASEnhStatsOrig()
+      } else {
+          out = getGWASEnhStatsSC()
+      }
+      return(out)
+  })
+
+  getGWASEnhStatsOrig <- reactive({
       load('data/all_snpxenhancer_intersections.Rda')
+      snpenhdf
+  })
+
+  # Copy of above to have reactively loaded snpcentric
+  getGWASEnhStatsSC <- reactive({
+      load('data/all_snpxenhancer_intersections.snpcentric.Rda')
       snpenhdf
   })
 
@@ -840,7 +860,27 @@ shinyServer(function(input, output, session) {
                                             })
 
   getGWASLinksStats  <- reactive({
+      if (input$useAnalysis == 'original'){
+          gw.linksdf = getGWASLinksStatsOrig()
+      } else {
+          gw.linksdf = getGWASLinksStatsSC()
+      }
+      gw.linksdf
+  })
+
+  getGWASLinksStatsOrig  <- reactive({
       load('data/all_gwas_SNP_links.Rda')
+      gw.linksdf$score = round(gw.linksdf$score, 2)
+      scols = c('chr','snpPos','p','dist','nearest','symbol','score','linkdist','node.rank','node.name', 'enr.p','uid', 'enrlab','snplab')
+      final.scols = c('chr','snpPos','snp.pValue','distToCenter','nearestGene','linkedGene','linkScore','linkDist','enrRank','enrName','enr.pValue', 'uid', 'enrlab','snplab')
+      gw.linksdf = gw.linksdf[,scols]
+      colnames(gw.linksdf) = final.scols
+      gw.linksdf
+  })
+
+  # Copy of above to have reactively loaded snpcentric
+  getGWASLinksStatsSC  <- reactive({
+      load('data/all_gwas_SNP_links.snpcentric.Rda')
       gw.linksdf$score = round(gw.linksdf$score, 2)
       scols = c('chr','snpPos','p','dist','nearest','symbol','score','linkdist','node.rank','node.name', 'enr.p','uid', 'enrlab','snplab')
       final.scols = c('chr','snpPos','snp.pValue','distToCenter','nearestGene','linkedGene','linkScore','linkDist','enrRank','enrName','enr.pValue', 'uid', 'enrlab','snplab')
@@ -962,15 +1002,20 @@ shinyServer(function(input, output, session) {
       suid = input$selGWASTree
       trait = sub(".* - ", "", suid)
       pmid = sub(" - .*", "", suid)
-      traitstr = gsub("'","_", gsub(" ", "_", tolower(trait)))
-      traitstrnoparen = gsub("/", "_", gsub("\\)" ,"", gsub("\\(","",traitstr)))
+      # traitstr = gsub("'","_", gsub(" ", "_", tolower(trait)))
+      # traitstrnoparen = gsub("/", "_", gsub("\\)" ,"", gsub("\\(","",traitstr)))
+      traitstrnoparen = fix.trait.str(trait)
       pnghead = paste0(epidir, 'gwas_smallfigures/gwas_locus_figures/')
       pngpref = paste0(traitstrnoparen, '_', pmid, '/gene_link_vis_')
-      pngtail = '_w1000000_with_tx_grouponly.png'
+      pngtail = '_w1000000_with_tx_grouponly'
+      # Update for snpcentric results
+      if (input$useAnalysis == 'revised'){
+          pnghead = paste0(pnghead, 'snpcentric/')
+          pngtail = paste0(pngtail, '.snpcentric')
+      }
       # Get locus:
       pnglocus = sub(":","_", gsub(",","", sub(" .*", "", input$selGWASLocus)))
-      pngurl = paste0(pnghead, pngpref, pnglocus, pngtail)
-      # chr6_43341689
+      pngurl = paste0(pnghead, pngpref, pnglocus, pngtail, '.png')
       return(pngurl)
   })
 
@@ -1023,13 +1068,16 @@ shinyServer(function(input, output, session) {
       suid = input$selGWASTree
       trait = sub(".* - ", "", suid)
       pmid = sub(" - .*", "", suid)
-      traitstr = gsub("'","_", gsub(" ", "_", tolower(trait)))
-      traitstrnoparen = gsub("/", "_", gsub("\\)" ,"", gsub("\\(","",traitstr)))
+      traitstrnoparen = fix.trait.str(trait)
       gwasdir = paste0(epidir, 'gwas_smallfigures/gwas_locus_figures/')
+      if (input$useAnalysis == 'revised'){
+          gwasdir = paste0(gwasdir, 'snpcentric/')
+      }
       traitdir = paste0(gwasdir, traitstrnoparen, '_', pmid, '/')
       # Datasets:
       traittsv = paste0(traitdir, traitstrnoparen, '_plotted_links_allsnps_w1000000.tsv.gz')
       traitrda = paste0(traitdir, traitstrnoparen, '_plotted_links_allsnps_w1000000.Rda')
+
       # df = gwas.summary.df[gwas.summary.df$uid == input$selGWASTree,]
       urlPM = strong(a(paste0("data repository"), href=paste0(traitdir)))
 
@@ -1037,7 +1085,8 @@ shinyServer(function(input, output, session) {
       fmt.groups = c()
       for (i in 1:length(link.groups)){
           fmt.groups = c(fmt.groups, paste0('<strong><span style="background-color:', link.cols[i],
-                                            '; color:', txt.cols[i], '">', link.groups[i], "</span></strong>")) }
+                  '; color:', txt.cols[i], '">', link.groups[i], "</span></strong>")) 
+      }
       fmt.groups = paste(fmt.groups, collapse=', ')
       title = strong("Locus overview for 1Mb around selected lead SNP:")
       linkdesc = tagList("Two types of correlation-based links are plotted:", strong("(1)"), "Links from one of the enhancers near a lead SNP in the enriched epigenomes.", strong("(2)"), "Any links in the locus present in at least half of the samples in one of the top sample groups (")
@@ -1045,7 +1094,7 @@ shinyServer(function(input, output, session) {
       pltdesc = "Tracks show average H3K27ac signal of enhancers in locus, and red dashed lines indicate the TSSes of nearby genes."
       urldesc = "Link data and images for this GWAS are also available from our "
       paste0(tagList(title, pltdesc, linkdesc), fmt.groups, '). ',
-             tagList(taildesc, urldesc, urlPM, "."))
+          tagList(taildesc, urldesc, urlPM, "."))
   })
 
 })
