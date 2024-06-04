@@ -1,6 +1,6 @@
-This repository contains the code for the [interactive browser](compbio2.mit.edu/epimap) of EpiMap data resource.
+This repository contains the code for the [interactive browser](http://compbio2.mit.edu/epimap_vis) of EpiMap data resource.
 
-The project's main site can be found at [compbio.mit.edu/epimap](compbio.mit.edu/epimap).
+The project's main site can be found at [compbio.mit.edu/epimap](http://compbio.mit.edu/epimap).
 
 You can run the browser directly on your computer using the code in this repository and the [`shiny`](https://shiny.rstudio.com/) library in R as follows:
 
