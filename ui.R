@@ -156,14 +156,14 @@ shinyUI(
                                     c("Original (*Improper FDR: see About page*)" = "original", "Revised" = "revised"), selected='revised'),
 
                                 selectizeInput('selGWASTree', 'Select single GWAS of interest (PubMedID - Trait):',
-                                    choices = tree.gwas, multiple = FALSE, options = list(create = TRUE)),
+                                    choices = treeGWASlist[['revised_1%']], multiple = FALSE, options = list(create = TRUE)),
                                 fluidRow(
-                                    column(4, actionButton("prevButton", "Previous"), actionButton("nextButton", "Next")),
-                                    column(1, tags$b("Adj. p-value:")), 
-                                    column(4, selectizeInput('selFDR', label=NULL,
+                                    column(3, tags$b("Adj. p-value:")), 
+                                    column(3, selectizeInput('selFDR', label=NULL,
                                             # 'Select FDR (only for enr. vis):', 
                                             choices = c('1%', '0.1%'),
-                                            multiple = FALSE, selected = '1%', options = list(create = TRUE)))
+                                            multiple = FALSE, selected = '1%', options = list(create = TRUE))),
+                                    column(6, actionButton("prevButton", "Previous"), actionButton("nextButton", "Next"))
                                     ),
                                 hr(),
                                 selectizeInput('filtNode', 'Filter tables by enrichment:',
@@ -178,7 +178,7 @@ shinyUI(
                                     selected='all'),
                                 hr(),
                                 selectizeInput('selGWASTreeMult', 'Select multiple GWAS of interest to plot side-by-side:',
-                                    choices = tree.gwas, multiple = TRUE, options = list(create = TRUE)),
+                                    choices = treeGWASlist[['revised_1%']], multiple = TRUE, options = list(create = TRUE)),
                                 sliderInput("GWASTreeScale", "Image Scale (for side-by-side):",
                                     min = 0.25, max = 2, value = 1, step = 0.05)
                                 ),

@@ -4,6 +4,7 @@ library(tidyr)
 library(stringr)
 library(RColorBrewer)
 library(igraph)
+library(DT)
 
 
 shinyServer(function(input, output, session) {
@@ -584,7 +585,8 @@ shinyServer(function(input, output, session) {
   })
 
   getEnhancerSNPPng <- reactive({
-      ind = which(tree.gwas == input$selGWASTree)
+      tree.list = getGWASList()
+      ind = which(tree.list == input$selGWASTree)
       ipref = sprintf("%05d", ind)
       if (input$useAnalysis == 'original'){
           pnghead = paste0(epidir, 'gwas_smallfigures/')
