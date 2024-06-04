@@ -1,4 +1,4 @@
-This repository contains the code for the [interactive browser](https://cboix.shinyapps.io/epimap_vis/) of EpiMap data resource.
+This repository contains the code for the [interactive browser](compbio2.mit.edu/epimap) of EpiMap data resource.
 
 The project's main site can be found at [compbio.mit.edu/epimap](compbio.mit.edu/epimap).
 
@@ -21,8 +21,7 @@ library(shiny)
 runGitHub("epimap_vis", "cboix")
 ```
 
-In addition, we have manuscript analysis code on github at [https://github.com/cboix/epimap_analysis](https://github.com/cboix/epimap_analysis)
+In addition, we have paper's analysis code on github at [https://github.com/cboix/epimap_analysis](https://github.com/cboix/epimap_analysis)
 
----
+**Paper:** [Boix _et. al_ (2021)](https://www.nature.com/articles/s41586-020-03145-z/) - _Regulatory genomic circuitry of human disease loci by integrative epigenomics_
 
-**Manuscript:** [Adsera _et. al_ bioRxiv (2019)](https://www.biorxiv.org/content/10.1101/810291v2) - _Integrative analysis of 10,000 epigenomic maps across 800 samples for regulatory genomics and disease dissection_
